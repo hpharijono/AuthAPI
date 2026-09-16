@@ -1,4 +1,6 @@
 using BaseAuthAPI.Data;
+using BaseAuthAPI.Repositories;
+using BaseAuthAPI.Services;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +18,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 

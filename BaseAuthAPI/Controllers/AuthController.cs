@@ -1,10 +1,7 @@
-using BaseAuthAPI.Data;
-using BaseAuthAPI.Models;
 using BaseAuthAPI.Models.Dtos;
+using BaseAuthAPI.Services;
 using FluentValidation;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BaseAuthAPI.Controllers
 {
@@ -12,17 +9,16 @@ namespace BaseAuthAPI.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IAuthService _authService;
         private readonly IValidator<RegisterRequest> _registerValidator;
         private readonly IValidator<LoginRequest> _loginValidator;
-        private readonly PasswordHasher<User> _passwordHasher = new();
 
         public AuthController(
-            ApplicationDbContext context,
+            IAuthService authService,
             IValidator<RegisterRequest> registerValidator,
             IValidator<LoginRequest> loginValidator)
         {
-            _context = context;
+            _authService = authService;
             _registerValidator = registerValidator;
             _loginValidator = loginValidator;
         }
@@ -36,30 +32,13 @@ namespace BaseAuthAPI.Controllers
                 return BadRequest(new { errors = validationResult.Errors.Select(e => e.ErrorMessage) });
             }
 
-            var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email);
-            if (emailExists)
+            var result = await _authService.RegisterAsync(request);
+            if (!result.Success)
             {
-                return BadRequest(new { message = "A user with this email already exists." });
+                return BadRequest(new { errors = result.Errors });
             }
 
-            var user = new User
-            {
-                FirstName = request.FirstName,
-                LastName = request.LastName,
-                Email = request.Email,
-            };
-            user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Ok(new UserResponse
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-            });
+            return Ok(result.Data);
         }
 
         [HttpPost("login")]
@@ -71,25 +50,13 @@ namespace BaseAuthAPI.Controllers
                 return BadRequest(new { errors = validationResult.Errors.Select(e => e.ErrorMessage) });
             }
 
-            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == request.Email);
-            if (user is null)
+            var result = await _authService.LoginAsync(request);
+            if (!result.Success)
             {
-                return BadRequest(new { message = "Invalid email or password." });
+                return BadRequest(new { errors = result.Errors });
             }
 
-            var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-            if (verificationResult == PasswordVerificationResult.Failed)
-            {
-                return BadRequest(new { message = "Invalid email or password." });
-            }
-
-            return Ok(new UserResponse
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Email = user.Email,
-            });
+            return Ok(result.Data);
         }
     }
 }
