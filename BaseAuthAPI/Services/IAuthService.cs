@@ -5,6 +5,7 @@ namespace BaseAuthAPI.Services
     public interface IAuthService
     {
         Task<ServiceResult<UserResponse>> RegisterAsync(RegisterRequest request);
-        Task<ServiceResult<UserResponse>> LoginAsync(LoginRequest request);
+        Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request);
+        Task<List<UserResponse>> GetUsersAsync();
     }
 }

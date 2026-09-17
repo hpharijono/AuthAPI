@@ -42,7 +42,7 @@ namespace BaseAuthAPI.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<UserResponse>> Login(LoginRequest request)
+        public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
         {
             var validationResult = await _loginValidator.ValidateAsync(request);
             if (!validationResult.IsValid)
