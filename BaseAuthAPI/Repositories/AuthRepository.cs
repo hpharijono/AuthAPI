@@ -28,5 +28,10 @@ namespace BaseAuthAPI.Repositories
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
         }
+
+        public Task<List<User>> GetAllAsync()
+        {
+            return _context.Users.ToListAsync();
+        }
     }
 }
