@@ -52,10 +52,53 @@ namespace BaseAuthAPI.Services
                 return ServiceResult<AuthResponse>.Fail("Invalid email or password.");
             }
 
+            if (user.PasswordHash is null)
+            {
+                return ServiceResult<AuthResponse>.Fail("This account uses Google sign-in. Please log in with Google.");
+            }
+
             var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
             if (verificationResult == PasswordVerificationResult.Failed)
             {
                 return ServiceResult<AuthResponse>.Fail("Invalid email or password.");
+            }
+
+            var (token, expiresAtUtc) = _tokenService.CreateToken(user);
+
+            return ServiceResult<AuthResponse>.Ok(new AuthResponse
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+                Token = token,
+                ExpiresAtUtc = expiresAtUtc,
+            });
+        }
+
+        public async Task<ServiceResult<AuthResponse>> LoginWithGoogleAsync(string googleId, string email, string firstName, string lastName)
+        {
+            var user = await _authRepository.GetByGoogleIdAsync(googleId);
+
+            if (user is null)
+            {
+                user = await _authRepository.GetByEmailAsync(email);
+                if (user is null)
+                {
+                    user = new User
+                    {
+                        FirstName = firstName,
+                        LastName = lastName,
+                        Email = email,
+                        GoogleId = googleId,
+                    };
+                    await _authRepository.AddAsync(user);
+                }
+                else
+                {
+                    user.GoogleId = googleId;
+                    await _authRepository.UpdateAsync(user);
+                }
             }
 
             var (token, expiresAtUtc) = _tokenService.CreateToken(user);

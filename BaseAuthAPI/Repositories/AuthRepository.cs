@@ -18,6 +18,11 @@ namespace BaseAuthAPI.Repositories
             return _context.Users.SingleOrDefaultAsync(u => u.Email == email);
         }
 
+        public Task<User?> GetByGoogleIdAsync(string googleId)
+        {
+            return _context.Users.SingleOrDefaultAsync(u => u.GoogleId == googleId);
+        }
+
         public Task<bool> EmailExistsAsync(string email)
         {
             return _context.Users.AnyAsync(u => u.Email == email);
@@ -26,6 +31,12 @@ namespace BaseAuthAPI.Repositories
         public async Task AddAsync(User user)
         {
             _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateAsync(User user)
+        {
+            _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }
 

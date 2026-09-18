@@ -45,7 +45,12 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var jwtKey = jwtSection["Key"] ?? throw new InvalidOperationException("Jwt:Key is not configured.");
 
-builder.Services.AddAuthentication(options =>
+var googleClientId = builder.Configuration["Google:ClientId"];
+var googleClientSecret = builder.Configuration["Google:ClientSecret"];
+var googleConfigured = !string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret);
+builder.Services.AddSingleton(new GoogleAuthOptionsStatus(googleConfigured));
+
+var authenticationBuilder = builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -63,6 +68,24 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
     };
 });
+
+// Only register the Google/"External" schemes when credentials are configured: the
+// auth middleware probes every remote scheme's CallbackPath on every request, so an
+// unconfigured Google handler (empty ClientId) would fail startup validation and break
+// the whole API, not just the Google routes.
+if (googleConfigured)
+{
+    authenticationBuilder
+        // Temporary cookie used only to carry Google's claims from the OAuth callback
+        // to our completion endpoint - never used to authenticate API requests.
+        .AddCookie("External")
+        .AddGoogle(options =>
+        {
+            options.ClientId = googleClientId!;
+            options.ClientSecret = googleClientSecret!;
+            options.SignInScheme = "External";
+        });
+}
 
 builder.Services.AddAuthorization();
 
@@ -84,3 +107,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public record GoogleAuthOptionsStatus(bool IsConfigured);
